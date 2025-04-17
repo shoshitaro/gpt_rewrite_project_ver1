@@ -97,7 +97,8 @@ if st.button("🚀 リライト＋音声化を実行（OpenAI）"):
             f.write(f"SPEAKER_PROMPT={openai_voice_prompt}\n")
             f.write(f"VOICE={selected_voice}\n")
             f.write(f"OUTPUT_DIR={custom_output_dir}\n")
-            f.write(f"INPUT_FILE={input_file_path}\n")
+            f.write(f"INPUT_FILE=uploaded/uploaded_text.txt\n")  # ← ✅ 正しいパスに修正！
+
             if clear_outputs:
                 f.write("CLEAR_OUTPUTS=1\n")
 
