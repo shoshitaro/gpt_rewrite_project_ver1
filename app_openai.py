@@ -4,7 +4,6 @@ import subprocess
 from dotenv import load_dotenv
 load_dotenv()
 import os
-import time
 import re
 
 # VOICE選択肢（OpenAI TTS）
@@ -30,39 +29,32 @@ st.markdown("""
 
 st.markdown("----")
 
-# === 入力：テキストファイルアップロード ===
+# === 📁 テキストファイルのアップロード ===
 st.markdown("### 📁 テキストファイルをアップロード")
 uploaded_file = st.file_uploader(".txt ファイルを選択", type="txt")
 
 st.markdown("----")
 
-# === 入力：リライトプロンプト編集欄 ===
+# === 📝 リライトスタイル入力 ===
 st.markdown("### 📝 リライトスタイルを選択")
-style_default = "YouTuberの一人語り風ナレーション"
-custom_style = st.text_input("🔹 ナレーションスタイル", value=style_default)
-ending_default = "文末は「〜なんですよ」「〜なんです」「〜って思いませんか？」など、やさしく語りかけるスタイルにしてください。"
-custom_ending = st.text_area("🔹 文末・語尾・口調のスタイル指示", value=ending_default, height=80)
+custom_style = st.text_input("🔹 ナレーションスタイル", value="YouTuberの一人語り風ナレーション")
+custom_ending = st.text_area("🔹 文末・語尾・口調のスタイル指示", value="文末は「〜なんですよ」「〜なんです」など優しく語りかけるスタイルで。", height=80)
 
 st.markdown("----")
 
-# === OpenAI音声スタイル ===
+# === 🎤 OpenAI音声スタイル選択 ===
 st.markdown("### 🎤 話者のスタイルを選ぶ（OpenAI TTS向け）")
 selected_voice = st.selectbox("🔸 TTSボイスを選択", list(VOICE_OPTIONS.keys()))
 st.caption(f"📝 特徴：{VOICE_OPTIONS[selected_voice]}")
 
 with st.expander("💡 プロンプト作成のガイド（ChatGPTに入力して活用）"):
-    st.markdown("""
-以下のプロンプトをChatGPTに入力すると、精度の高い指示が得られます。
-```text
-...（中略）...
-```
-""")
+    st.markdown("ChatGPTに以下のプロンプトを貼り付けて話し方スタイルを生成してください。")
 
 openai_voice_prompt = st.text_area("🎙️ 話し方のスタイル指示文（ChatGPTで出力された内容を貼り付けてください）", "", height=160)
 
 st.markdown("----")
 
-# === 出力先フォルダ：新規作成のみ ===
+# === 📂 出力フォルダの設定 ===
 st.markdown("### 📂 音声の出力先フォルダを新規作成")
 project_base_dir = "projects"
 os.makedirs(project_base_dir, exist_ok=True)
@@ -81,37 +73,26 @@ clear_outputs = st.checkbox("🧹 実行前に前回の出力を削除する")
 
 st.markdown("----")
 
-# === 実行ボタン ===
+# === 🚀 実行ボタン ===
 if st.button("🚀 リライト＋音声化を実行（OpenAI）"):
     status_placeholder = st.empty()
+
     if uploaded_file is None:
         st.warning("⚠️ テキストファイルをアップロードしてください。")
     elif not custom_output_dir:
         st.warning("⚠️ 出力フォルダが未設定です。")
     elif not openai_voice_prompt.strip():
         st.warning("⚠️ 音声スタイル指示文が入力されていません。")
-    elif not selected_voice:
-        st.warning("⚠️ TTSボイスが未選択です。")
     else:
-        if clear_outputs:
-            for folder in ["rewritten_texts", "rewritten_texts_split"]:
-                if os.path.exists(folder):
-                    for f in os.listdir(folder):
-                        os.remove(os.path.join(folder, f))
-            if os.path.exists(custom_output_dir):
-                for f in os.listdir(custom_output_dir):
-                    os.remove(os.path.join(custom_output_dir, f))
-
+        # ファイル保存
         os.makedirs("uploaded", exist_ok=True)
-        input_file_path = os.path.join("uploaded", uploaded_file.name)
+        input_file_path = os.path.join("uploaded", "uploaded_text.txt")
         with open(input_file_path, "wb") as f:
             f.write(uploaded_file.getbuffer())
 
-        status_placeholder.info("⏳ full_pipeline_openai.py を実行中...")
-
-        intro_text = f"以下の書籍原稿を、{custom_style}にリライトしてください。"
+        # 設定ファイル出力
         with open(".streamlit_temp_config_openai.txt", "w", encoding="utf-8") as f:
-            f.write(f"INTRO={intro_text}\n")
+            f.write(f"INTRO=以下の書籍原稿を、{custom_style}にリライトしてください。\n")
             f.write(f"ENDING={custom_ending}\n")
             f.write(f"SPEAKER_PROMPT={openai_voice_prompt}\n")
             f.write(f"VOICE={selected_voice}\n")
@@ -120,10 +101,14 @@ if st.button("🚀 リライト＋音声化を実行（OpenAI）"):
             if clear_outputs:
                 f.write("CLEAR_OUTPUTS=1\n")
 
+        status_placeholder.info("⏳ full_pipeline_openai.py を実行中...")
+
+        # 実行
         script_path = os.path.join(os.path.dirname(__file__), "full_pipeline_openai.py")
         env = os.environ.copy()
         env["OPENAI_API_KEY"] = os.getenv("OPENAI_API_KEY")
         result = subprocess.run(["python3", script_path], capture_output=True, text=True, env=env)
+
         if result.returncode == 0:
             status_placeholder.success("✅ 実行が完了しました！")
             st.code(result.stdout)
@@ -133,7 +118,7 @@ if st.button("🚀 リライト＋音声化を実行（OpenAI）"):
 
 st.markdown("----")
 
-# === 出力表示：MP3ファイル ===
+# === 🎵 音声ファイルの表示 ===
 if custom_output_dir:
     audio_files = sorted(os.listdir(custom_output_dir))
     if audio_files:
